@@ -1,1 +1,74 @@
-/* You can add global styles to this file, and also import other style files */
+/* Import predefiniowanego motywu Angular Material */
+@import '@angular/material/prebuilt-themes/indigo-pink.css';
+
+/* Podstawowe style dla całej aplikacji */
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: Roboto, 'Helvetica Neue', sans-serif;
+}
+
+/* Style do formatowania komponentów chatbota */
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.chat-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 16px;
+  overflow: hidden;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.message-card {
+  margin-bottom: 16px;
+  max-width: 80%;
+}
+
+.user-message {
+  align-self: flex-end;
+  background-color: #e3f2fd;
+  margin-left: auto;
+}
+
+.bot-message {
+  align-self: flex-start;
+  background-color: #f5f5f5;
+  margin-right: auto;
+}
+
+.chat-input {
+  padding-top: 8px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.button-container {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
