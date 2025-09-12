@@ -1,0 +1,77 @@
+<div class="thread-list-container">
+  <mat-toolbar>
+    <span>Konwersacje</span>
+    <span class="spacer"></span>
+    <button mat-mini-fab color="primary" (click)="createNewThread()" aria-label="Utwórz nowy czat">
+      <mat-icon>add</mat-icon>
+    </button>
+  </mat-toolbar>
+
+  <mat-nav-list class="thread-list">
+    <ng-container *ngIf="threads.length > 0; else noThreads">
+      <a
+        mat-list-item
+        *ngFor="let thread of threads"
+        (click)="selectThread(thread)"
+        [class.active-thread]="thread.id === currentThread?.id"
+        [attr.aria-selected]="thread.id === currentThread?.id"
+      >
+        <ng-container *ngIf="!isEditing[thread.id]; else editMode">
+          <div class="thread-content">
+            <div class="thread-title mat-body-1">{{ thread.title }}</div>
+            <div class="thread-date mat-small">
+              {{ formatDate(thread.updatedAt || thread.createdAt) }}
+            </div>
+          </div>
+
+          <button
+            mat-icon-button
+            (click)="startEditing(thread); $event.stopPropagation()"
+            aria-label="Edytuj nazwę wątku"
+            class="edit-button"
+          >
+            <mat-icon>edit</mat-icon>
+          </button>
+        </ng-container>
+
+        <ng-template #editMode>
+          <div class="edit-form-container">
+            <mat-form-field appearance="outline" class="edit-form-field">
+              <mat-label>Nazwa wątku</mat-label>
+              <input
+                matInput
+                [(ngModel)]="editTitle[thread.id]"
+                (keyup.enter)="saveTitle(thread)"
+                (keyup.escape)="cancelEditing(thread.id)"
+                #titleInput
+                autocomplete="off"
+                placeholder="Wpisz nazwę wątku"
+                title="Pole edycji nazwy wątku"
+              />
+              <button
+                mat-icon-button
+                matSuffix
+                (click)="saveTitle(thread); $event.stopPropagation()"
+              >
+                <mat-icon>check</mat-icon>
+              </button>
+              <button
+                mat-icon-button
+                matSuffix
+                (click)="cancelEditing(thread.id); $event.stopPropagation()"
+              >
+                <mat-icon>close</mat-icon>
+              </button>
+            </mat-form-field>
+          </div>
+        </ng-template>
+      </a>
+    </ng-container>
+
+    <ng-template #noThreads>
+      <div class="no-threads">
+        <p class="mat-body-1">Brak konwersacji. Utwórz nową, aby rozpocząć czat.</p>
+      </div>
+    </ng-template>
+  </mat-nav-list>
+</div>

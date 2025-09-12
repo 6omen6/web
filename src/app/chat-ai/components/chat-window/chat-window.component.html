@@ -1,0 +1,86 @@
+<mat-sidenav-container class="sidenav-container">
+  <mat-sidenav mode="side" opened class="thread-sidebar">
+    <app-thread-list></app-thread-list>
+  </mat-sidenav>
+
+  <mat-sidenav-content>
+    <mat-toolbar color="primary" class="chat-toolbar">
+      <span>{{ currentThread?.title || 'Czat AI' }}</span>
+      <span class="spacer"></span>
+      <button mat-button (click)="createNewThread()"><mat-icon>add</mat-icon> Nowy czat</button>
+    </mat-toolbar>
+
+    <div class="messages-container mat-app-background">
+      <ng-container *ngIf="messages.length > 0; else emptyChat">
+        <mat-list role="list">
+          <div *ngFor="let message of messages" class="message-wrapper">
+            <div
+              class="message"
+              [ngClass]="{ 'user-message': message.isFromUser, 'ai-message': !message.isFromUser }"
+            >
+              <div class="message-content">
+                {{ message.content }}
+                <mat-progress-spinner
+                  *ngIf="message.isGenerating"
+                  mode="indeterminate"
+                  diameter="20"
+                  color="accent"
+                  class="inline-spinner"
+                ></mat-progress-spinner>
+              </div>
+
+              <div *ngIf="!message.isFromUser && !message.isGenerating" class="message-actions">
+                <app-message-rating [messageId]="message.id" [userRating]="message.userRating">
+                </app-message-rating>
+              </div>
+            </div>
+          </div>
+        </mat-list>
+      </ng-container>
+
+      <ng-template #emptyChat>
+        <div class="empty-state">
+          <mat-icon class="empty-icon">chat</mat-icon>
+          <h3 class="mat-h3">Rozpocznij nową konwersację</h3>
+          <p class="mat-body-1">Zadaj pytanie, aby rozpocząć czat z AI.</p>
+        </div>
+      </ng-template>
+    </div>
+
+    <mat-card class="input-card">
+      <mat-card-content>
+        <div class="input-container">
+          <mat-form-field appearance="outline" class="message-input">
+            <mat-label>Wpisz wiadomość...</mat-label>
+            <input
+              matInput
+              [formControl]="messageInput"
+              (keydown.enter)="sendMessage()"
+              aria-label="Wpisz swoją wiadomość"
+            />
+          </mat-form-field>
+
+          <button
+            mat-mini-fab
+            color="primary"
+            [disabled]="messageInput.invalid || isLoading"
+            (click)="sendMessage()"
+            aria-label="Wyślij wiadomość"
+          >
+            <mat-icon>send</mat-icon>
+          </button>
+
+          <button
+            *ngIf="isGenerating"
+            mat-mini-fab
+            color="warn"
+            (click)="cancelGeneration()"
+            aria-label="Przerwij generowanie"
+          >
+            <mat-icon>stop</mat-icon>
+          </button>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </mat-sidenav-content>
+</mat-sidenav-container>
