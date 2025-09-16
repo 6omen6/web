@@ -3,9 +3,11 @@ export interface Message {
   content: string;
   isFromUser: boolean;
   timestamp: Date;
-  rating?: number;
+  threadId?: number;
+  rating?: number | null;
+  userRating?: number | null;
   isGenerating?: boolean;
-  userRating?: number;
+  wasCancelled?: boolean;
 }
 
 export interface SendMessageCommand {

@@ -7,6 +7,8 @@ export interface StreamingResponse {
   text: string;
   isCompleted: boolean;
   threadId?: number;
+  messageId?: number;
+  wasCancelled?: boolean;
 }
 
 @Injectable({
@@ -17,26 +19,36 @@ export class StreamingService {
   private abortController = new AbortController();
   private stopStream$ = new Subject<void>();
   private lastResponseText = '';
+  private currentEventSource: EventSource | null = null;
+  private cancellationInProgress = false;
+  private currentRequestId: string | null = null;
   
   constructor(private http: HttpClient) {}
 
   generateStreamingResponse(userMessage: string, threadId?: number): Observable<StreamingResponse> {
+    // Upewnij się, że poprzednie połączenia są zamknięte
+    if (!this.cancellationInProgress) {
+      this.cancelGeneration(true);
+    }
+    
     this.abortController = new AbortController();
-    
     this.stopStream$ = new Subject<void>();
-    
     this.lastResponseText = '';
+    this.cancellationInProgress = false;
+    
+    // Generuj unikalne ID dla tego żądania
+    this.currentRequestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     
     const responseSubject = new Subject<StreamingResponse>();
     
-    let url = `${this.apiUrl}?userMessage=${encodeURIComponent(userMessage)}`;
+    let url = `${this.apiUrl}?userMessage=${encodeURIComponent(userMessage)}&requestId=${this.currentRequestId}`;
     if (threadId) {
       url += `&threadId=${threadId}`;
     }
-      
-    const eventSource = new EventSource(url);
     
-    eventSource.onmessage = (event) => {
+    this.currentEventSource = new EventSource(url);
+    
+    this.currentEventSource.onmessage = (event) => {
       this.lastResponseText = event.data;
       responseSubject.next({ 
         text: event.data, 
@@ -45,16 +57,27 @@ export class StreamingService {
       });
     };
     
-    eventSource.onerror = (error) => {
-      eventSource.close();
+    this.currentEventSource.onerror = (error) => {
+      this.closeEventSource();
       responseSubject.error(error);
     };
     
-    eventSource.addEventListener('completed', (event: any) => {
+    this.currentEventSource.addEventListener('completed', (event: any) => {
+      let messageId: number | undefined = undefined;
+      let wasCancelled: boolean = false;
+
+      console.log('Received completed event:', event);
+      
       try {
         const data = JSON.parse(event.data || '{}');
         if (data.threadId) {
           threadId = data.threadId;
+        }
+        if (data.aiMessageId) {
+          messageId = data.aiMessageId;
+        }
+        if (data.wasCancelled !== undefined) {
+          wasCancelled = data.wasCancelled;
         }
       } catch (e) {
         console.error('Error while parsing JSON response:', e);
@@ -63,24 +86,13 @@ export class StreamingService {
       responseSubject.next({ 
         text: this.lastResponseText, 
         isCompleted: true,
-        threadId: threadId
+        threadId: threadId,
+        messageId: messageId,
+        wasCancelled: wasCancelled
       });
-      eventSource.close();
-      responseSubject.complete();
-    });
-    
-    eventSource.addEventListener('cancelled', () => {
-      responseSubject.next({ 
-        text: this.lastResponseText, 
-        isCompleted: true,
-        threadId: threadId
-      });
-      eventSource.close();
-      responseSubject.complete();
-    });
-    
-    this.stopStream$.subscribe(() => {
-      eventSource.close();
+      
+      this.closeEventSource();
+      this.cancellationInProgress = false;
       responseSubject.complete();
     });
     
@@ -89,9 +101,46 @@ export class StreamingService {
     );
   }
   
-  cancelGeneration(): void {
+  cancelGeneration(forceClose = false): void {
+    // Jeśli nie ma aktywnego żądania, nie rób nic
+    if (!this.currentRequestId && !forceClose) return;
+    
+    // Jeśli forceClose jest true, zamykamy połączenie od razu
+    if (forceClose) {
+      this.closeEventSource();
+    } else {
+      // W przeciwnym razie zaznaczamy, że anulowanie jest w toku
+      this.cancellationInProgress = true;
+    }
+    
+    // Anuluj bieżące żądanie
     this.abortController.abort();
-    this.stopStream$.next();
-    this.stopStream$.complete();
+    
+    // Wyślij żądanie anulowania do serwera
+    if (this.currentRequestId) {
+      this.sendCancelRequest(this.currentRequestId);
+    }
+    
+    if (forceClose) {
+      if (this.stopStream$) {
+        this.stopStream$.next();
+        this.stopStream$.complete();
+      }
+      this.currentRequestId = null;
+    }
+  }
+  
+  private closeEventSource(): void {
+    if (this.currentEventSource) {
+      this.currentEventSource.close();
+      this.currentEventSource = null;
+    }
+  }
+  
+  private sendCancelRequest(requestId: string): void {
+    // Wyślij żądanie anulowania do backendu
+    fetch(`/api/streaming/cancel?requestId=${requestId}`, {
+      method: 'POST'
+    }).catch(err => console.error('Error sending cancel request:', err));
   }
 }

@@ -20,18 +20,32 @@
             >
               <div class="message-content">
                 {{ message.content }}
+                <!-- Pokaż spinner, ale tylko gdy wiadomość jest generowana i nie została anulowana -->
                 <mat-progress-spinner
-                  *ngIf="message.isGenerating"
+                  *ngIf="message.isGenerating && !message.wasCancelled"
                   mode="indeterminate"
                   diameter="20"
                   color="accent"
                   class="inline-spinner"
                 ></mat-progress-spinner>
+
+                <!-- Komunikat o anulowaniu generowania - pokazywany zawsze, gdy wiadomość została anulowana -->
+                <div *ngIf="!message.isFromUser && message.wasCancelled" class="cancelled-message">
+                  Generowanie wiadomości zostało przerwane.
+                </div>
               </div>
 
-              <div *ngIf="!message.isFromUser && !message.isGenerating" class="message-actions">
-                <app-message-rating [messageId]="message.id" [userRating]="message.userRating">
-                </app-message-rating>
+              <!-- Przyciski oceny pokazywane gdy: wiadomość nie jest od użytkownika ORAZ
+                   (wiadomość nie jest generowana LUB została anulowana) -->
+              <div
+                *ngIf="!message.isFromUser && (!message.isGenerating || message.wasCancelled)"
+                class="message-actions"
+              >
+                <app-message-rating
+                  *ngIf="message.id"
+                  [messageId]="message.id"
+                  [userRating]="message.rating || undefined"
+                ></app-message-rating>
               </div>
             </div>
           </div>

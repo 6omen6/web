@@ -143,7 +143,7 @@ export class ChatWindowComponent implements OnInit, OnDestroy {
     this.messages.push(aiMessage);
     this.currentGeneratingMessage = aiMessage;
     this.scrollToBottom();
-        
+      
     const threadId = this.currentThread?.id;
     
     this.streamSubscription = this.streamingService.generateStreamingResponse(userContent, threadId)
@@ -153,14 +153,32 @@ export class ChatWindowComponent implements OnInit, OnDestroy {
             this.ngZone.run(() => {
               if (this.currentGeneratingMessage) {
                 this.currentGeneratingMessage.content = response.text;
+
+                if (response.messageId) {
+                  this.currentGeneratingMessage.id = response.messageId;
+                }
                 
-                if (response.isCompleted && response.threadId && (!this.currentThread || this.currentThread.id !== response.threadId)) {
-                  this.chatService.getThreads().subscribe(threads => {
-                    const thread = threads.find((t: ConversationThread) => t.id === response.threadId);
-                    if (thread) {
-                      this.chatService.setCurrentThread(thread);
-                    }
-                  });
+                if (response.wasCancelled) {
+                  this.currentGeneratingMessage.wasCancelled = true;
+                  this.currentGeneratingMessage.isGenerating = false;
+                }
+                
+                // Force Angular change detection
+                this.messages = [...this.messages];
+                
+                if (response.isCompleted) {
+                  // Gdy serwer zwróci completed, kończymy generowanie
+                  this.finishGeneration(true);
+                  
+                  // Aktualizacja wątku jeśli trzeba
+                  if (response.threadId && (!this.currentThread || this.currentThread.id !== response.threadId)) {
+                    this.chatService.getThreads().subscribe(threads => {
+                      const thread = threads.find((t: ConversationThread) => t.id === response.threadId);
+                      if (thread) {
+                        this.chatService.setCurrentThread(thread);
+                      }
+                    });
+                  }
                 }
                 
                 this.scrollToBottom();
@@ -173,17 +191,32 @@ export class ChatWindowComponent implements OnInit, OnDestroy {
           this.finishGeneration(false);
         },
         complete: () => {
-          this.finishGeneration(true);
+          // Nie potrzebujemy tego wywołania, gdyż finishGeneration jest wywoływane w next
+          // przy otrzymaniu completed z serwera
         }
       });
   }
   
-  cancelGeneration(): void {
-    if (!this.isGenerating) return;
+cancelGeneration(): void {
+  if (!this.isGenerating) return;
+  
+  // Tutaj nie zamykamy połączenia, tylko wysyłamy żądanie anulowania
+  this.streamingService.cancelGeneration(false);
+  
+  // Natychmiast aktualizujemy UI, żeby pokazać komunikat o anulowaniu
+  if (this.currentGeneratingMessage) {
+    this.currentGeneratingMessage.wasCancelled = true;
+    // Nie ustawiamy isGenerating na false, żeby zachować spinner
     
-    this.streamingService.cancelGeneration();
-    this.finishGeneration(false);
+    // Force Angular change detection
+    this.ngZone.run(() => {
+      // This will trigger change detection
+      this.messages = [...this.messages]; 
+    });
   }
+  
+  // Nie wywołujemy finishGeneration() - poczekamy na sygnał z serwera
+}
   
   finishGeneration(success: boolean): void {
     if (this.streamSubscription) {
@@ -202,6 +235,12 @@ export class ChatWindowComponent implements OnInit, OnDestroy {
     }
     
     this.isGenerating = false;
+    
+    // Force Angular change detection
+    this.ngZone.run(() => {
+      // This will trigger change detection
+      this.messages = [...this.messages];
+    });
     
     this.scrollToBottom();
   }
