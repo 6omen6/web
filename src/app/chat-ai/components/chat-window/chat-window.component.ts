@@ -163,14 +163,11 @@ export class ChatWindowComponent implements OnInit, OnDestroy {
                   this.currentGeneratingMessage.isGenerating = false;
                 }
                 
-                // Force Angular change detection
                 this.messages = [...this.messages];
                 
                 if (response.isCompleted) {
-                  // Gdy serwer zwróci completed, kończymy generowanie
                   this.finishGeneration(true);
                   
-                  // Aktualizacja wątku jeśli trzeba
                   if (response.threadId && (!this.currentThread || this.currentThread.id !== response.threadId)) {
                     this.chatService.getThreads().subscribe(threads => {
                       const thread = threads.find((t: ConversationThread) => t.id === response.threadId);
@@ -190,33 +187,22 @@ export class ChatWindowComponent implements OnInit, OnDestroy {
           console.error('Error during streaming:', error);
           this.finishGeneration(false);
         },
-        complete: () => {
-          // Nie potrzebujemy tego wywołania, gdyż finishGeneration jest wywoływane w next
-          // przy otrzymaniu completed z serwera
-        }
       });
   }
   
 cancelGeneration(): void {
   if (!this.isGenerating) return;
   
-  // Tutaj nie zamykamy połączenia, tylko wysyłamy żądanie anulowania
   this.streamingService.cancelGeneration(false);
   
-  // Natychmiast aktualizujemy UI, żeby pokazać komunikat o anulowaniu
   if (this.currentGeneratingMessage) {
     this.currentGeneratingMessage.wasCancelled = true;
-    // Nie ustawiamy isGenerating na false, żeby zachować spinner
     
-    // Force Angular change detection
     this.ngZone.run(() => {
-      // This will trigger change detection
       this.messages = [...this.messages]; 
     });
   }
-  
-  // Nie wywołujemy finishGeneration() - poczekamy na sygnał z serwera
-}
+  }
   
   finishGeneration(success: boolean): void {
     if (this.streamSubscription) {
@@ -236,9 +222,7 @@ cancelGeneration(): void {
     
     this.isGenerating = false;
     
-    // Force Angular change detection
     this.ngZone.run(() => {
-      // This will trigger change detection
       this.messages = [...this.messages];
     });
     

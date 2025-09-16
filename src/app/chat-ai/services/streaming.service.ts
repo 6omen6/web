@@ -26,7 +26,6 @@ export class StreamingService {
   constructor(private http: HttpClient) {}
 
   generateStreamingResponse(userMessage: string, threadId?: number): Observable<StreamingResponse> {
-    // Upewnij się, że poprzednie połączenia są zamknięte
     if (!this.cancellationInProgress) {
       this.cancelGeneration(true);
     }
@@ -36,7 +35,6 @@ export class StreamingService {
     this.lastResponseText = '';
     this.cancellationInProgress = false;
     
-    // Generuj unikalne ID dla tego żądania
     this.currentRequestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     
     const responseSubject = new Subject<StreamingResponse>();
@@ -102,21 +100,16 @@ export class StreamingService {
   }
   
   cancelGeneration(forceClose = false): void {
-    // Jeśli nie ma aktywnego żądania, nie rób nic
     if (!this.currentRequestId && !forceClose) return;
     
-    // Jeśli forceClose jest true, zamykamy połączenie od razu
     if (forceClose) {
       this.closeEventSource();
     } else {
-      // W przeciwnym razie zaznaczamy, że anulowanie jest w toku
       this.cancellationInProgress = true;
     }
     
-    // Anuluj bieżące żądanie
     this.abortController.abort();
     
-    // Wyślij żądanie anulowania do serwera
     if (this.currentRequestId) {
       this.sendCancelRequest(this.currentRequestId);
     }
@@ -138,7 +131,6 @@ export class StreamingService {
   }
   
   private sendCancelRequest(requestId: string): void {
-    // Wyślij żądanie anulowania do backendu
     fetch(`/api/streaming/cancel?requestId=${requestId}`, {
       method: 'POST'
     }).catch(err => console.error('Error sending cancel request:', err));
